@@ -10,10 +10,10 @@ var url = process.env.MONGOLAB_URI || 'mongodb://test:test@ds017246.mlab.com:172
 var db_collection = "url_shortener";
 var m_original_url= "";
 var m_short_url = "";
-var website_url = "https://tobenamed.herokuapp.com/";
+var website_url = "https://urlshortener-microservice.herokuapp.com/";
 var m_uniqueid;
 
-function createShortURL(mycollection){
+function set_uniqueid(mycollection){
   mycollection.count({}, function(err, data){
     if(err) throw err;
     var index = (data + 1).toString();
@@ -21,11 +21,16 @@ function createShortURL(mycollection){
   });
 }
 
-//app.use(express.static(__dirname));
+function isValideURL(url){
+  
+  return true;
+}
 
-//app.get("/", function(req, res) {
-//    res.sendFile(path.join(__dirname + '/index.html')); // Render HTML File
-//});
+app.use(express.static(__dirname));
+
+app.get("/", function(req, res) {
+    res.sendFile(path.join(__dirname + '/index.html')); // Render HTML File
+});
 
   MongoClient.connect(url, function (err, db) {
   if (err) {
@@ -47,7 +52,10 @@ function createShortURL(mycollection){
   app.get('/new/*', function(req, res) {
     console.log('A new URL has been passed as a parameter.');
     m_original_url = req.params[0];
-    createShortURL(mycollection);
+    if(!isValideURL(m_original_url)){
+      res.send('Error 404: Please pass a valid URL (format: http://www.example.com)');
+    }
+    set_uniqueid(mycollection);
 
     mycollection.findOne({ "original_url": m_original_url}, function(err, unique_id) {
       if (err) throw err;
@@ -73,7 +81,6 @@ function createShortURL(mycollection){
   
   // 2-- Visiting a shortened URL --> redirect to the original link --:
   app.get('/*', function(req, res){
-    console.log("The shortened URL is: " + req.params[0]);
     mycollection.findOne({ "short_url": website_url + req.params[0]}, function(err, unique_id) {
       if (err) throw err;
       if (unique_id) {
