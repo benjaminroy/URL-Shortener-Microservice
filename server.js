@@ -2,6 +2,7 @@
 
 var express = require('express');
 var mongodb = require('mongodb');
+var validate = require('validate.js');
 var app = express();
 var path = require("path");
 var port = process.env.PORT || 8080;
@@ -21,9 +22,14 @@ function set_uniqueid(mycollection){
   });
 }
 
-function isValideURL(url){
-  
-  return true;
+function isValideURL(str) {
+  var test = validate({website: str}, {website: {url: true}});
+  if(test === undefined){
+    return true;
+  }
+  else{
+    return false;    
+  }
 }
 
 app.use(express.static(__dirname));
@@ -54,29 +60,31 @@ app.get("/", function(req, res) {
     m_original_url = req.params[0];
     if(!isValideURL(m_original_url)){
       res.send('Error 404: Please pass a valid URL (format: http://www.example.com)');
-    }
-    set_uniqueid(mycollection);
+    }else{
+      set_uniqueid(mycollection);
 
-    mycollection.findOne({ "original_url": m_original_url}, function(err, unique_id) {
-      if (err) throw err;
-      if (!unique_id) {
-        // Add the new URL and the corresponding shortened URL to the collection :
-        console.log('The new URL is not in the database');
-        m_short_url = m_uniqueid;
-        mycollection.insert( { original_url: m_original_url, short_url: m_short_url } );
-      } 
-      else {
-        // Get the existing shortened URL in the database :
-        console.log('The new URL is already in the database');
-        m_short_url = unique_id.short_url;
-      }
+      mycollection.findOne({ "original_url": m_original_url}, function(err, unique_id) {
+        if (err) throw err;
+        if (!unique_id) {
+          // Add the new URL and the corresponding shortened URL to the collection :
+          console.log('The new URL is not in the database');
+          m_short_url = m_uniqueid;
+          mycollection.insert( { original_url: m_original_url, short_url: m_short_url } );
+        } 
+        else {
+          // Get the existing shortened URL in the database :
+          console.log('The new URL is already in the database');
+          m_short_url = unique_id.short_url;
+        }
       
-      res.json({
-        original_url: m_original_url,
-        short_url: m_short_url
-      }); 
-    });
+        res.json({
+          original_url: m_original_url,
+          short_url: m_short_url
+        }); 
+      });
+    }
   });
+  
   
   
   // 2-- Visiting a shortened URL --> redirect to the original link --:
