@@ -10,16 +10,20 @@ var port = process.env.PORT || 8080;
 var MongoClient = mongodb.MongoClient;
 var url = process.env.MONGOLAB_URI || 'mongodb://test:test@ds017246.mlab.com:17246/freecodecampdb';
 var db_collection = "url_shortener";
-var m_original_url = "test_1";
-var m_short_url = "test_2";
-
+var m_original_url= "";
+var m_short_url = "";
+var website_url = "https://tobenamed.herokuapp.com/";
 
 function createShortURL(){
-  var new_url = Math.floor((Math.random() * 10000) + 1);
-  return "https://tobenamed.herokuapp.com/" + new_url;
+  var unique_id = Math.floor((Math.random() * 100000) + 1);
+  
+  
+  
+  return website_url + unique_id;
 }
 
 //app.use(express.static(__dirname));
+
 
 //app.get("/", function(req, res) {
 //    res.sendFile(path.join(__dirname + '/index.html')); // Render HTML File
@@ -39,34 +43,54 @@ function createShortURL(){
       max: 5000,
       size: 5242880,
   });
-  
-  // -- Get the new URL parameter -- :
-  
+  var mycollection = db.collection(db_collection);
+
+  // 1-- Get the new URL parameter -- :
   app.get('/new/*', function(req, res) {
     console.log('A new URL has been passed as a parameter.');
     m_original_url = req.params[0];
-    m_short_url = createShortURL();
-    
-    // -- Add the new original URL and shortened URL to the collection --: 
-    //var url_shortener = db.collection('url_shortener');
-    //url_shortener.insert( { original_url: m_original_url, short_url: m_short_url } );
-  
-    res.json({
+
+
+    mycollection.findOne({ "original_url": m_original_url}, function(err, unique_id) {
+      if (err) throw err;
+      if (!unique_id) {
+        // Add the new URL and the corresponding shortened URL to the collection :
+        console.log('The new URL is not in the database');
+        m_short_url = createShortURL();
+        mycollection.insert( { original_url: m_original_url, short_url: m_short_url } );
+      } 
+      else {
+        // Get the existing shortened URL in the database :
+        console.log('The new URL is already in the database');
+        m_short_url = unique_id.short_url;
+      }
+      
+      res.json({
         original_url: m_original_url,
         short_url: m_short_url
-    }); 
+      }); 
+    });
   });
   
   
-  // -- Visiting a shortened URL --> redirect to the original link --:
+  // 2-- Visiting a shortened URL --> redirect to the original link --:
   app.get('/*', function(req, res){
-    console.log('A short URL has been passed as a parameter.');
-    res.end();
+    console.log(req.params[0]);
+    mycollection.findOne({ "short_url": website_url + req.params[0]}, function(err, unique_id) {
+      //if (err) throw err;
+      if (unique_id) {
+        console.log('A short URL has been passed as a parameter : ' + req.params[0]);
+        console.log('Redirect to: ' + unique_id.original_url);
+        res.redirect(unique_id.original_url);
+      } 
+      else {
+        console.log('Nothing has been passed as a parameter');
+        res.end();
+      }
+    });
   });
-
   
-  db.close();
-  
+  //db.close();
   
   app.listen(port, function() {
     console.log('App listening on port ' + port);
