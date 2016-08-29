@@ -1,4 +1,3 @@
-// https://mlab.com/databases/freecodecampdb#collections
 'use strict';
 
 var express = require('express');
@@ -6,24 +5,23 @@ var mongodb = require('mongodb');
 var app = express();
 var path = require("path");
 var port = process.env.PORT || 8080;
-
 var MongoClient = mongodb.MongoClient;
 var url = process.env.MONGOLAB_URI || 'mongodb://test:test@ds017246.mlab.com:17246/freecodecampdb';
 var db_collection = "url_shortener";
 var m_original_url= "";
 var m_short_url = "";
 var website_url = "https://tobenamed.herokuapp.com/";
+var m_uniqueid;
 
-function createShortURL(){
-  var unique_id = Math.floor((Math.random() * 100000) + 1);
-  
-  
-  
-  return website_url + unique_id;
+function createShortURL(mycollection){
+  mycollection.count({}, function(err, data){
+    if(err) throw err;
+    var index = (data + 1).toString();
+    m_uniqueid = website_url + index;
+  });
 }
 
 //app.use(express.static(__dirname));
-
 
 //app.get("/", function(req, res) {
 //    res.sendFile(path.join(__dirname + '/index.html')); // Render HTML File
@@ -49,14 +47,14 @@ function createShortURL(){
   app.get('/new/*', function(req, res) {
     console.log('A new URL has been passed as a parameter.');
     m_original_url = req.params[0];
-
+    createShortURL(mycollection);
 
     mycollection.findOne({ "original_url": m_original_url}, function(err, unique_id) {
       if (err) throw err;
       if (!unique_id) {
         // Add the new URL and the corresponding shortened URL to the collection :
         console.log('The new URL is not in the database');
-        m_short_url = createShortURL();
+        m_short_url = m_uniqueid;
         mycollection.insert( { original_url: m_original_url, short_url: m_short_url } );
       } 
       else {
@@ -75,9 +73,9 @@ function createShortURL(){
   
   // 2-- Visiting a shortened URL --> redirect to the original link --:
   app.get('/*', function(req, res){
-    console.log(req.params[0]);
+    console.log("The shortened URL is: " + req.params[0]);
     mycollection.findOne({ "short_url": website_url + req.params[0]}, function(err, unique_id) {
-      //if (err) throw err;
+      if (err) throw err;
       if (unique_id) {
         console.log('A short URL has been passed as a parameter : ' + req.params[0]);
         console.log('Redirect to: ' + unique_id.original_url);
@@ -89,8 +87,6 @@ function createShortURL(){
       }
     });
   });
-  
-  //db.close();
   
   app.listen(port, function() {
     console.log('App listening on port ' + port);
